@@ -19,13 +19,14 @@ int chooseOption();
 string decryptFile(string fileFullPath, string encryptionKey);
 void encryptFile(string fileFullPath, string password, string key);
 bool flipACoin();
-void generateWordKey();
-void generateCharacterKey();
+string generateCharacterPassword();
+char generateLetter(int randomInt, bool hasSpecialChar, const char alphabet[]);
+string generateWordPassword();
 string getEncryptionKey();
 string getFilePath();
 int getRandomIntUpTo(int range);
 string getRandomStringFromFile(string filename);
-wstring s2ws(string& s);
+void savePasswordToFile(string generatedPassword);
 
 string ExecutablePath;
 
@@ -34,17 +35,20 @@ void Generator::run(char executablePath[])
     ExecutablePath = executablePath;
 
     int key;
+    string wordPass;
+    string charPass;
     do
     {
         key = chooseOption();
         switch (key)
         {
             case '1':
-                generateWordKey();
+                wordPass = generateWordPassword();
+                savePasswordToFile(wordPass);
                 break;
             case '2':
-                //generateCharacterKey();
-                cout << "\nThis feature not yet implemented.";
+                charPass = generateCharacterPassword();
+                savePasswordToFile(charPass);
                 break;
             case '3':
                 beginDecryptFile();
@@ -132,7 +136,7 @@ void encryptFile(string fileFullPath, string password, string encryptionKey)
     fstream fileStream(fileFullPath, fstream::out);
     if (!fileStream)
     {
-        cout << "Error opening file: '" << fileFullPath << "'.";
+        cout << "\n\nError opening file: '" << fileFullPath << "'.";
         cout << "\nPress any key to exit.";
         _getch();
         exit(1);
@@ -149,7 +153,110 @@ bool flipACoin()
     return rand() % 101 < 50 ? true : false;
 }
 
-void generateWordKey()
+string generateCharacterPassword()
+{
+    const int minimumLength = 8; // average minimum length for a password
+    const int range = 6;
+    int length = 0;
+    vector <char> randChars;
+    while (length < minimumLength)
+    {
+        cout << "\nEnter a password length (minimum: 8): ";
+        try
+        {
+            string val;
+            getline(cin, val);
+            if (isalpha(val[0]))
+            {
+                cout << "\nValue must be an integer. Please try again.";
+                continue;
+            }
+            length = val[0] - '0';
+            if (length < minimumLength)
+                cout << "\nLength must be greater than 8. Please try again.";
+        }
+        catch (...)
+        {
+            cout << "\n\nInvalid value provided. Please try again.";
+        }
+    }
+
+    char special = 'a';
+    while (special != 'y' && special != 'n')
+    {
+        cout << "Do you want special characters? [y/n]: ";
+        try
+        {
+            string val;
+            getline(cin, val);
+            special = val[0];
+            if (special != 'y' && special != 'n')
+                cout << "\nInvalid character. Please try again.\n";
+        }
+        catch (...)
+        {
+            cout << "\n\nInvalid value provided. Please try again.\n";
+        }
+    }
+    for (size_t i = 0; i < length; i++)
+    {
+        // First letter is always a capital letter
+        if (i == 0)
+        {
+            randChars.push_back(generateLetter(i, false, CapitalAlphabet));
+        }
+        // Generate a random alphabetical character or special character
+        else if (i > 0 && i < length - 1)
+        {
+            int randomInt = getRandomIntUpTo(range);
+            randChars.push_back(generateLetter(randomInt, special == 'y', LowercaseAlphabet));
+        }
+        // Generate a guaranteed special character as the last character
+        else if (i == length - 1 && special == 'y')
+        {
+            randChars.push_back(generateLetter(range, true, LowercaseAlphabet));
+        }
+        // Generate a guaranteed alphabetical character as the last character
+        else if (i == length - 1 && special == 'n')
+        {
+            int randomInt = getRandomIntUpTo(range);
+            randChars.push_back(generateLetter(randomInt, false, LowercaseAlphabet));
+        }
+    }
+    string password;
+    for (size_t i = 0; i < randChars.size(); i++)
+        password += randChars[i];
+
+    cout << "Your new password is:\t" + password;
+    
+    return password;
+}
+
+char generateLetter(int randomInt, bool hasSpecialCharacter, const char alphabet[])
+{
+    switch (randomInt)
+    {
+        case 0:
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+            return alphabet[getRandomIntUpTo((sizeof(alphabet)/sizeof(*alphabet)) - 1)];
+        case 5:
+            return Numbers[getRandomIntUpTo((sizeof(Numbers)/sizeof(*Numbers)) - 1)];
+        case 6:
+            if (hasSpecialCharacter)
+                return SpecialCharacters[getRandomIntUpTo((sizeof(SpecialCharacters)/sizeof(*SpecialCharacters)) - 1)];
+            else
+                return Numbers[getRandomIntUpTo((sizeof(Numbers) / sizeof(*Numbers)) - 1)];
+        default:
+            cout << "\nSomething went wrong.";
+            cout << "\nPress any key to exit.";
+            exit(3);
+    }
+}
+
+string generateWordPassword()
 {
     bool firstOrSecond = false;
     string generatedPassword = "";
@@ -169,16 +276,7 @@ void generateWordKey()
         + numberForPassword;
     cout << generatedPassword;
 
-    //string masterPassword = "";
-    string fileFullPath = getFilePath();
-    string encryptionKey = getEncryptionKey();
-    encryptFile(fileFullPath, generatedPassword, encryptionKey);
-    cout << "\nYour password file has been encrypted successfully.\n\n";
-}
-
-void generateCharacterKey()
-{
-
+    return generatedPassword;
 }
 
 string getFilePath()
@@ -276,15 +374,10 @@ string getRandomStringFromFile(string filename)
     return values[randIndex];
 }
 
-// Source: https://stackoverflow.com/a/27296
-wstring s2ws(string& s)
+void savePasswordToFile(string generatedPassword)
 {
-    int len;
-    int slength = (int)s.length() + 1;
-    len = MultiByteToWideChar(CP_ACP, 0, s.c_str(), slength, 0, 0);
-    wchar_t* buf = new wchar_t[len];
-    MultiByteToWideChar(CP_ACP, 0, s.c_str(), slength, buf, len);
-    wstring r(buf);
-    delete[] buf;
-    return r;
+    string fileFullPath = getFilePath();
+    string encryptionKey = getEncryptionKey();
+    encryptFile(fileFullPath, generatedPassword, encryptionKey);
+    cout << "\nYour password file has been encrypted successfully.\n\n";
 }
