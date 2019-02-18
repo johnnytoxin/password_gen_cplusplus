@@ -1,9 +1,7 @@
 #include "pch.h"
 #include "Generator.h"
-#include "..\cryptopp800\dll.h"
 
 using namespace std;
-using namespace CryptoPP;
 
 // Consts
 const string ResourceFolder = "Resources";
@@ -16,7 +14,9 @@ const char CapitalAlphabet[] = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J
 const char Numbers[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 const char SpecialCharacters[] = { '?', '_', '-', '!', '@', '$', '#', '&' };
 // Headers
+void beginDecryptFile();
 int chooseOption();
+string decryptFile(string fileFullPath, string encryptionKey);
 void encryptFile(string fileFullPath, string password, string key);
 bool flipACoin();
 void generateWordKey();
@@ -47,11 +47,21 @@ void Generator::run(char executablePath[])
                 cout << "\nThis feature not yet implemented.";
                 break;
             case '3':
-                //decryptFile();
-                cout << "\nThis feature not yet implemented.";
+                beginDecryptFile();
                 break;
         }
     } while (key != 'q');
+}
+
+void beginDecryptFile()
+{
+    cout << "\nPlease enter the full path to the file: ";
+    string fileFullPath;
+    getline(cin, fileFullPath);
+    string encryptionKey = getEncryptionKey();
+    string decryptedPassword = decryptFile(fileFullPath, encryptionKey);
+    cout << "\n\nThe file has been decrypted successfully!";
+    cout << "\nYour password is: " + decryptedPassword + "\n\n";
 }
 
 int chooseOption()
@@ -81,31 +91,43 @@ int chooseOption()
     return key;
 }
 
-void encryptFile(string fileFullPath, string password, string key)
+string decryptFile(string fileFullPath, string encryptionKey)
 {
-    AutoSeededRandomPool rnd;
+    fstream fileStream(fileFullPath, fstream::in);
+    if (!fileStream)
+    {
+        cout << "Error opening file: '" << fileFullPath << "'.";
+        cout << "\nPress any key to exit.";
+        _getch();
+        exit(1);
+    }
+    fileStream.close();
+    string encryptedPassword = "";
+    fileStream.open(fileFullPath, fstream::in | fstream::out);
+    fileStream >> encryptedPassword;
+    fileStream.close();
+    // Get the character count of the encryption key
+    int keyCount = 0;
+    for (size_t i = 0; i < encryptionKey.length(); i++)
+        keyCount += encryptionKey[i];
+    // Remove the encryption
+    string decryptedPassword = encryptedPassword;
+    for (size_t i = 0; i < encryptedPassword.length(); i++)
+        decryptedPassword[i] = encryptedPassword[i] - keyCount;
 
-    SecByteBlock kBlock(0x00, AES::DEFAULT_KEYLENGTH); //(unsigned char*)(key.c_str()), AES::DEFAULT_KEYLENGTH);
-    rnd.GenerateBlock(kBlock, kBlock.size());
+    return decryptedPassword;
+}
 
-    SecByteBlock iv(AES::BLOCKSIZE);
-    rnd.GenerateBlock(iv, iv.size());
-
-    /*byte k[AES::DEFAULT_KEYLENGTH], iv[AES::BLOCKSIZE];
-    memset(k, 0x00, AES::DEFAULT_KEYLENGTH);
-    memset(iv, 0x00, AES::BLOCKSIZE);*/
-
-    string cipher;
-    CFB_Mode<AES>::Encryption aesEncryption(kBlock, AES::DEFAULT_KEYLENGTH);
-    StringSink ss(cipher);
-    StreamTransformationFilter stfEncryptor(aesEncryption, &ss);
-    stfEncryptor.Put(reinterpret_cast<const unsigned char*>(password.c_str()), password.length());
-    stfEncryptor.MessageEnd();
-
-    /*string hashPass = key + password;
-    for (size_t i = 0; i < hashPass.length() - 1; i++)
-        for (size_t j = 0; j < HashingIterations; j++)
-            hashPass[i] = hash<char>{}(hashPass[i]);*/
+void encryptFile(string fileFullPath, string password, string encryptionKey)
+{
+    // Get the character count of the encryption key
+    int keyCount = 0;
+    for (size_t i = 0; i < encryptionKey.length(); i++)
+        keyCount += encryptionKey[i];
+    // Add the key count to each ASCII character
+    string encryptedPass = password;
+    for (size_t i = 0; i < password.length(); i++)
+        encryptedPass[i] = password[i] + keyCount;
 
     fstream fileStream(fileFullPath, fstream::out);
     if (!fileStream)
@@ -118,11 +140,8 @@ void encryptFile(string fileFullPath, string password, string key)
     fileStream.close();
     // Write password to file
     fileStream.open(fileFullPath, fstream::in | fstream::out);
-    fileStream << cipher;
+    fileStream << encryptedPass;
     fileStream.close();
-    // Cleanup
-    stfEncryptor.Flush(true);
-    ss.Flush(true);
 }
 
 bool flipACoin()
