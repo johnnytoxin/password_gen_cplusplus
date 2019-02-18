@@ -281,27 +281,55 @@ string generateWordPassword()
 
 string getFilePath()
 {
-    string fileFullPath = "";
-    try
+    string filePath = "";
+    string filename = "";
+
+    while (true)
     {
-        cout << "\nPlease enter the full path with filename and extension: ";
-        getline(cin, fileFullPath);
-        if (fileFullPath == "")
+        try
         {
-            cout << "\nFile path is empty.";
-            return getFilePath();
+            cout << "\nPlease enter the file path: ";
+            getline(cin, filePath);
+            if (filePath == "")
+            {
+                cout << "\nFile path cannot be empty.";
+                continue;
+            }
+            filesystem::path path(filePath);
+            if (!filesystem::exists(path))
+                filesystem::create_directories(path);
+            break;
         }
-        return fileFullPath;
+        catch (exception e)
+        {
+            cout << "An error has occurred: " << e.what();
+        }
     }
-    catch (int e)
+    while (true)
     {
-        cout << printf("\n%c\n", e);
+        try
+        {
+            cout << "\nPlease enter the file name, with no extension: ";
+            getline(cin, filename);
+            if (filename == "")
+            {
+                cout << "\nFile name cannot be empty.";
+                continue;
+            }
+            filesystem::path path(filePath + "\\" + filename);
+            if (filesystem::exists(path))
+            {
+                cout << "\nFile already exists. Please use a different file name.";
+                continue;
+            }
+            break;
+        }
+        catch (exception e)
+        {
+            cout << "An error has occurred: " << e.what();
+        }
     }
-    catch (...)
-    {
-        cout << "An unknown error has occurred.";
-    }
-    return fileFullPath;
+    return filePath + "\\" + filename;
 }
 
 string getEncryptionKey()
